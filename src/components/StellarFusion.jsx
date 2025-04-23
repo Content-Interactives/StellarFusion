@@ -111,6 +111,12 @@ const heliumFusion = keyframes`
   100% { transform: scale(1); filter: brightness(1); }
 `;
 
+const carbonFusion = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); filter: brightness(1.5); }
+  100% { transform: scale(1); filter: brightness(1); }
+`;
+
 const Star = styled.div`
   width: 300px;
   height: 300px;
@@ -196,28 +202,45 @@ const fadeInScale = keyframes`
   }
 `;
 
-const HeliumCore = styled.div`
-  width: 100%;
-  height: 100%;
-  background: #FFA500;
+const moveToCenter = keyframes`
+  0% { transform: translate(var(--startX), var(--startY)) scale(1); }
+  50% { transform: translate(0, 0) scale(0.8); }
+  100% { transform: translate(var(--endX), var(--endY)) scale(1); }
+`;
+
+const fusionGlow = keyframes`
+  0% { box-shadow: 0 0 10px var(--glow-color); }
+  50% { box-shadow: 0 0 30px var(--glow-color), 0 0 50px var(--glow-color); }
+  100% { box-shadow: 0 0 10px var(--glow-color); }
+`;
+
+const FusionParticle = styled.div`
+  width: ${props => props.type === 'helium' ? '15px' : '25px'};
+  height: ${props => props.type === 'helium' ? '15px' : '25px'};
+  background: ${props => props.type === 'helium' ? '#FFA500' : '#8B4513'};
   border-radius: 50%;
   position: absolute;
+  opacity: 1;
+  --glow-color: ${props => props.type === 'helium' ? 'rgba(255, 165, 0, 0.6)' : 'rgba(139, 69, 19, 0.6)'};
+  --startX: ${props => props.startX}px;
+  --startY: ${props => props.startY}px;
+  --endX: ${props => props.endX}px;
+  --endY: ${props => props.endY}px;
+  animation: ${props => props.isFusing ? moveToCenter : props.type === 'helium' ? heliumFusion : carbonFusion} ${props => props.isFusing ? '3s' : '2s'} 
+    ${props => props.isFusing ? 'forwards' : 'infinite'} ease-in-out,
+    ${fusionGlow} 2s infinite ease-in-out;
+  transform: translate(${props => props.x}px, ${props => props.y}px);
+`;
+
+const FusionFlash = styled.div`
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle, rgba(255,165,0,0.8) 0%, rgba(255,165,0,0) 70%);
+  border-radius: 50%;
   opacity: ${props => props.show ? 1 : 0};
-  transition: opacity 0.5s ease;
-  animation: ${props => props.show ? pulseGlow : 'none'} 2s infinite ease-in-out,
-             ${props => props.show ? heliumFusion : 'none'} 3s infinite ease-in-out;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    width: 120%;
-    height: 120%;
-    background: radial-gradient(circle, rgba(255,165,0,0.3) 0%, rgba(255,165,0,0) 70%);
-    animation: ${pulseGlow} 2s infinite ease-in-out;
-  }
+  transition: opacity 0.3s ease;
+  animation: ${pulseGlow} 1s infinite ease-in-out;
 `;
 
 const SupernovaButton = styled.button`
@@ -246,6 +269,54 @@ const SupernovaButton = styled.button`
   }
 `;
 
+const HeliumCore = styled.div`
+  width: 100%;
+  height: 100%;
+  background: #FFA500;
+  border-radius: 50%;
+  position: absolute;
+  opacity: ${props => props.show ? 1 : 0};
+  transition: opacity 0.5s ease;
+  animation: ${props => props.show ? pulseGlow : 'none'} 2s infinite ease-in-out,
+             ${props => props.show ? heliumFusion : 'none'} 3s infinite ease-in-out;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    width: 120%;
+    height: 120%;
+    background: radial-gradient(circle, rgba(255,165,0,0.3) 0%, rgba(255,165,0,0) 70%);
+    animation: ${pulseGlow} 2s infinite ease-in-out;
+  }
+`;
+
+const CarbonCore = styled.div`
+  width: 100%;
+  height: 100%;
+  background: #8B4513;
+  border-radius: 50%;
+  position: absolute;
+  opacity: ${props => props.show ? 1 : 0};
+  transition: opacity 0.5s ease;
+  animation: ${props => props.show ? pulseGlow : 'none'} 2s infinite ease-in-out,
+             ${props => props.show ? carbonFusion : 'none'} 3s infinite ease-in-out;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    width: 120%;
+    height: 120%;
+    background: radial-gradient(circle, rgba(139,69,19,0.3) 0%, rgba(139,69,19,0) 70%);
+    animation: ${pulseGlow} 2s infinite ease-in-out;
+  }
+`;
+
 const StellarFusion = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [phase, setPhase] = useState('intro');
@@ -255,10 +326,14 @@ const StellarFusion = () => {
   const [showCore, setShowCore] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
   const [showSupernova, setShowSupernova] = useState(false);
+  const [showCarbonCore, setShowCarbonCore] = useState(false);
+  const [fusionParticles, setFusionParticles] = useState([]);
   const [hydrogenPositions] = useState(Array(9).fill(null).map((_, i) => ({
     id: i,
     isActive: true
   })));
+  const [fusionFlashes, setFusionFlashes] = useState([]);
+  const [fusingParticles, setFusingParticles] = useState([]);
 
   useEffect(() => {
     const timeline = [1000, 3000, 5000, 7000];
@@ -276,19 +351,97 @@ const StellarFusion = () => {
 
   useEffect(() => {
     if (phase === 'helium') {
-      // Start helium fusion sequence
       const sequence = async () => {
-        // Show helium core with glow effect
+        // Show helium core
         setShowCore(true);
         
-        // Start expansion after a delay
+        // Create initial helium particles in two rings
+        const heliumParticles = [];
+        // Inner ring
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * Math.PI * 2;
+          const radius = 60;
+          heliumParticles.push({
+            id: Date.now() + i,
+            type: 'helium',
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            isFusing: false
+          });
+        }
+        // Outer ring
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2 + Math.PI / 8;
+          const radius = 100;
+          heliumParticles.push({
+            id: Date.now() + 100 + i,
+            type: 'helium',
+            x: Math.cos(angle) * radius,
+            y: Math.sin(angle) * radius,
+            isFusing: false
+          });
+        }
+        setFusionParticles(heliumParticles);
+
+        // Start fusion sequence
         setTimeout(() => {
           setIsExpanding(true);
           
-          // Show supernova button after expansion
-          setTimeout(() => {
-            setShowSupernova(true);
-          }, 3000);
+          // Fusion animation sequence
+          const fusionSequence = async () => {
+            // First fusion group
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const firstGroup = heliumParticles.slice(0, 3);
+            setFusingParticles(firstGroup.map(p => p.id));
+            setFusionFlashes([{ id: Date.now(), x: 0, y: 0 }]);
+            
+            // Create first carbon
+            setTimeout(() => {
+              setFusionParticles(prev => [
+                ...prev.filter(p => !firstGroup.find(fg => fg.id === p.id)),
+                {
+                  id: Date.now() + 1000,
+                  type: 'carbon',
+                  x: 30,
+                  y: 30,
+                  isFusing: false
+                }
+              ]);
+              setFusionFlashes([]);
+            }, 3000);
+
+            // Second fusion group
+            await new Promise(resolve => setTimeout(resolve, 4000));
+            const secondGroup = heliumParticles.slice(3, 6);
+            setFusingParticles(secondGroup.map(p => p.id));
+            setFusionFlashes([{ id: Date.now() + 1, x: -30, y: 30 }]);
+
+            // Create second carbon
+            setTimeout(() => {
+              setFusionParticles(prev => [
+                ...prev.filter(p => !secondGroup.find(sg => sg.id === p.id)),
+                {
+                  id: Date.now() + 2000,
+                  type: 'carbon',
+                  x: -30,
+                  y: -30,
+                  isFusing: false
+                }
+              ]);
+              setFusionFlashes([]);
+            }, 3000);
+          };
+
+          fusionSequence().then(() => {
+            // Show carbon core
+            setTimeout(() => {
+              setShowCarbonCore(true);
+              // Show supernova button
+              setTimeout(() => {
+                setShowSupernova(true);
+              }, 1000);
+            }, 2000);
+          });
         }, 2000);
       };
       
@@ -431,6 +584,29 @@ const StellarFusion = () => {
             )
           ))}
           {phase === 'helium' && <HeliumCore show={true} />}
+          {phase === 'helium' && <CarbonCore show={showCarbonCore} />}
+          {phase === 'helium' && fusionParticles.map(particle => (
+            <FusionParticle
+              key={particle.id}
+              type={particle.type}
+              x={particle.x}
+              y={particle.y}
+              isFusing={fusingParticles.includes(particle.id)}
+              startX={particle.x}
+              startY={particle.y}
+              endX={particle.type === 'helium' ? 0 : particle.x}
+              endY={particle.type === 'helium' ? 0 : particle.y}
+            />
+          ))}
+          {fusionFlashes.map(flash => (
+            <FusionFlash
+              key={flash.id}
+              show={true}
+              style={{
+                transform: `translate(${flash.x}px, ${flash.y}px)`
+              }}
+            />
+          ))}
         </CoreRegion>
         {heliumAtoms.map(helium => (
           <HeliumAtom
