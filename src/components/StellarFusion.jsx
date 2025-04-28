@@ -23,8 +23,8 @@ const moveOut = keyframes`
 `;
 
 const Container = styled.div`
-  width: 500px;
-  height: 500px;
+  width: 600px;
+  height: 600px;
   background: #000;
   position: relative;
   display: flex;
@@ -49,10 +49,10 @@ const Text = styled.div`
   color: white;
   position: absolute;
   text-align: center;
-  font-size: 18px;
+  font-size: 20px;
   width: 80%;
-  max-width: 400px;
-  padding: 10px;
+  max-width: 500px;
+  padding: 14px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.7);
   opacity: 0;
@@ -60,7 +60,7 @@ const Text = styled.div`
   animation-delay: ${props => props.delay}s;
   z-index: 90;
   ${props => props.position === 'top' ? 'top: 20px;' : ''}
-  ${props => props.position === 'bottom' ? 'bottom: 100px;' : ''}
+  ${props => props.position === 'bottom' ? 'bottom: 30px;' : ''}
   ${props => props.position === 'middle' ? 'top: 50%; transform: translateY(-50%);' : ''}
 `;
 
@@ -118,8 +118,8 @@ const carbonFusion = keyframes`
 `;
 
 const Star = styled.div`
-  width: 300px;
-  height: 300px;
+  width: 540px;
+  height: 540px;
   background: #FFD700;
   border-radius: 50%;
   position: relative;
@@ -135,33 +135,30 @@ const Star = styled.div`
 `;
 
 const CoreRegion = styled.div`
-  width: ${props => 150 * (1 - props.shrinkFactor * 0.33)}px;
-  height: ${props => 150 * (1 - props.shrinkFactor * 0.33)}px;
+  width: ${props => 320 * (1 - props.shrinkFactor * 0.33)}px;
+  height: ${props => 320 * (1 - props.shrinkFactor * 0.33)}px;
   background: ${props => props.isHelium ? '#FFA500' : 'rgba(255, 140, 0, 0.8)'};
   border-radius: 50%;
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: ${props => 15 * (1 - props.shrinkFactor * 0.33)}px;
-  padding: ${props => 20 * (1 - props.shrinkFactor * 0.33)}px;
   transition: all 0.8s ease;
-  place-items: center;
+  overflow: hidden;
 `;
 
 const HydrogenAtom = styled.div`
   width: ${props => 20 * (1 - props.shrinkFactor * 0.33)}px;
   height: ${props => 20 * (1 - props.shrinkFactor * 0.33)}px;
-  background: #fff;
+  background: #4ee9f3;
   border-radius: 50%;
   cursor: pointer;
+  position: absolute;
+  left: ${props => props.x}px;
+  top: ${props => props.y}px;
   transition: all 0.3s ease;
-  
+  box-shadow: 0 0 4px #222;
   &:hover {
     transform: scale(1.2);
     background: #87CEEB;
   }
-
   &.selected {
     background: #87CEEB;
     transform: scale(1.2);
@@ -180,9 +177,9 @@ const moveOutAndFade = keyframes`
 `;
 
 const HeliumAtom = styled.div`
-  width: 25px;
-  height: 25px;
-  background: #FFA500;
+  width: ${props => props.size || 25}px;
+  height: ${props => props.size || 25}px;
+  background: ${props => props.color || '#FFA500'};
   border-radius: 50%;
   position: absolute;
   opacity: 0;
@@ -318,6 +315,7 @@ const CarbonCore = styled.div`
 `;
 
 const StellarFusion = () => {
+  // Restore individual useState hooks
   const [currentStep, setCurrentStep] = useState(0);
   const [phase, setPhase] = useState('intro');
   const [selectedAtoms, setSelectedAtoms] = useState([]);
@@ -328,12 +326,28 @@ const StellarFusion = () => {
   const [showSupernova, setShowSupernova] = useState(false);
   const [showCarbonCore, setShowCarbonCore] = useState(false);
   const [fusionParticles, setFusionParticles] = useState([]);
-  const [hydrogenPositions] = useState(Array(9).fill(null).map((_, i) => ({
-    id: i,
-    isActive: true
-  })));
+  const [hydrogenAtoms, setHydrogenAtoms] = useState([]);
   const [fusionFlashes, setFusionFlashes] = useState([]);
   const [fusingParticles, setFusingParticles] = useState([]);
+  const [fusingHelium, setFusingHelium] = useState(null);
+
+  // Reset handler for dev
+  const handleReset = () => {
+    setCurrentStep(0);
+    setPhase('intro');
+    setSelectedAtoms([]);
+    setFusionCount(0);
+    setHeliumAtoms([]);
+    setShowCore(false);
+    setIsExpanding(false);
+    setShowSupernova(false);
+    setShowCarbonCore(false);
+    setFusionParticles([]);
+    setHydrogenAtoms([]);
+    setFusionFlashes([]);
+    setFusingParticles([]);
+    setFusingHelium(null);
+  };
 
   useEffect(() => {
     const timeline = [1000, 3000, 5000, 7000];
@@ -344,6 +358,40 @@ const StellarFusion = () => {
         if (index === timeline.length - 1) {
           setShowCore(true);
           setPhase('hydrogen');
+          // Generate random hydrogen atom positions within a circle, avoiding overlap
+          const atoms = [];
+          const n = 25; // number of atoms
+          const coreRadius = 155; // px, fits inside new CoreRegion
+          const atomRadius = 14; // px, matches visual size
+          const margin = 2; // px, extra margin
+          const maxRadius = coreRadius - atomRadius - margin;
+          const minDist = 32; // minimum distance between atoms (px)
+          let attempts = 0;
+          for (let i = 0; i < n; i++) {
+            let placed = false;
+            for (let tries = 0; tries < 100 && !placed; tries++) {
+              let angle = Math.random() * 2 * Math.PI;
+              let radius = Math.sqrt(Math.random()) * maxRadius;
+              let dx = Math.cos(angle) * radius;
+              let dy = Math.sin(angle) * radius;
+              // Check for overlap
+              let ok = true;
+              for (let j = 0; j < atoms.length; j++) {
+                let ddx = atoms[j].dx - dx;
+                let ddy = atoms[j].dy - dy;
+                if (Math.sqrt(ddx * ddx + ddy * ddy) < minDist) {
+                  ok = false;
+                  break;
+                }
+              }
+              if (ok) {
+                atoms.push({ id: i, dx, dy, isActive: true });
+                placed = true;
+              }
+            }
+            // If not placed after 100 tries, just skip this atom
+          }
+          setHydrogenAtoms(atoms);
         }
       }, delay);
     });
@@ -391,14 +439,12 @@ const StellarFusion = () => {
           const fusionSequence = async () => {
             // First fusion group
             await new Promise(resolve => setTimeout(resolve, 1000));
-            const firstGroup = heliumParticles.slice(0, 3);
+            const firstGroup = fusionParticles.slice(0, 3);
             setFusingParticles(firstGroup.map(p => p.id));
             setFusionFlashes([{ id: Date.now(), x: 0, y: 0 }]);
-            
-            // Create first carbon
             setTimeout(() => {
-              setFusionParticles(prev => [
-                ...prev.filter(p => !firstGroup.find(fg => fg.id === p.id)),
+              setFusionParticles([
+                ...fusionParticles.filter(p => !firstGroup.find(fg => fg.id === p.id)),
                 {
                   id: Date.now() + 1000,
                   type: 'carbon',
@@ -412,14 +458,12 @@ const StellarFusion = () => {
 
             // Second fusion group
             await new Promise(resolve => setTimeout(resolve, 4000));
-            const secondGroup = heliumParticles.slice(3, 6);
+            const secondGroup = fusionParticles.slice(3, 6);
             setFusingParticles(secondGroup.map(p => p.id));
             setFusionFlashes([{ id: Date.now() + 1, x: -30, y: 30 }]);
-
-            // Create second carbon
             setTimeout(() => {
-              setFusionParticles(prev => [
-                ...prev.filter(p => !secondGroup.find(sg => sg.id === p.id)),
+              setFusionParticles([
+                ...fusionParticles.filter(p => !secondGroup.find(sg => sg.id === p.id)),
                 {
                   id: Date.now() + 2000,
                   type: 'carbon',
@@ -447,86 +491,94 @@ const StellarFusion = () => {
       
       sequence();
     }
-  }, [phase]);
+  }, [phase, fusionParticles]);
 
-  const isAdjacent = (index1, index2) => {
-    if (index1 === index2) return false;
-    
-    // Convert indexes to grid positions
-    const row1 = Math.floor(index1 / 3);
-    const col1 = index1 % 3;
-    const row2 = Math.floor(index2 / 3);
-    const col2 = index2 % 3;
-
-    // Check if atoms are at most one cell apart in any direction
-    const rowDiff = Math.abs(row1 - row2);
-    const colDiff = Math.abs(col1 - col2);
-
-    return rowDiff <= 1 && colDiff <= 1;
+  // Distance-based selection for fusion
+  const canFuse = (atom1, atom2) => {
+    if (!atom1 || !atom2) return false;
+    const originalRadius = 155;
+    const currentRadius = 320 * (1 - fusionCount * 0.33) / 2;
+    const center = currentRadius;
+    const scale = currentRadius / originalRadius;
+    const x1 = center + atom1.dx * scale;
+    const y1 = center + atom1.dy * scale;
+    const x2 = center + atom2.dx * scale;
+    const y2 = center + atom2.dy * scale;
+    const dx = x1 - x2;
+    const dy = y1 - y2;
+    return Math.sqrt(dx * dx + dy * dy) < 50; // 50px threshold
   };
 
-  const handleAtomClick = (index) => {
+  const handleAtomClick = (id) => {
     if (phase !== 'hydrogen') return;
-    if (!hydrogenPositions[index].isActive) return;
-
+    const atomIndex = hydrogenAtoms.findIndex(a => a.id === id);
+    if (atomIndex === -1 || !hydrogenAtoms[atomIndex].isActive) return;
     if (selectedAtoms.length === 0) {
-      // First atom selected
-      setSelectedAtoms([index]);
+      setSelectedAtoms([id]);
     } else if (selectedAtoms.length === 1) {
-      if (selectedAtoms[0] === index) {
-        // Clicked same atom twice, deselect it
+      if (selectedAtoms[0] === id) {
         setSelectedAtoms([]);
         return;
       }
-
-      // Check if the new atom is adjacent to the first selected atom
-      if (isAdjacent(selectedAtoms[0], index)) {
-        // Calculate center position for helium
-        const row1 = Math.floor(selectedAtoms[0] / 3);
-        const col1 = selectedAtoms[0] % 3;
-        const row2 = Math.floor(index / 3);
-        const col2 = index % 3;
-        
-        const centerX = ((col1 + col2) / 2) * 40;
-        const centerY = ((row1 + row2) / 2) * 40;
-
-        // Random direction for helium movement
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 100;
-        const moveX = Math.cos(angle) * distance;
-        const moveY = Math.sin(angle) * distance;
-
-        const newHeliumAtom = {
-          id: Date.now(),
-          moveX,
-          moveY,
-          x: centerX,
-          y: centerY
-        };
-
-        // Update state
-        setHeliumAtoms(prev => [...prev, newHeliumAtom]);
-        
-        // Mark atoms as inactive
-        const newPositions = [...hydrogenPositions];
-        newPositions[selectedAtoms[0]].isActive = false;
-        newPositions[index].isActive = false;
-
-        setFusionCount(prev => {
-          const newCount = prev + 1;
-          if (newCount === 3) {
-            setTimeout(() => {
-              setPhase('helium');
-            }, 2000);
-          }
-          return newCount;
-        });
-
-        // Clear selection
+      // Check if the new atom is close enough to fuse
+      const atom1 = hydrogenAtoms.find(a => a.id === selectedAtoms[0]);
+      const atom2 = hydrogenAtoms.find(a => a.id === id);
+      if (canFuse(atom1, atom2)) {
+        // Mark atoms as fusing (white)
+        setHydrogenAtoms(hydrogenAtoms.map(a =>
+          a.id === selectedAtoms[0] || a.id === id ? { ...a, fusing: true } : a
+        ));
+        // After 400ms, hide hydrogens and show helium
+        setTimeout(() => {
+          // Remove the two hydrogens
+          setHydrogenAtoms(hydrogenAtoms => hydrogenAtoms.map(a =>
+            a.id === selectedAtoms[0] || a.id === id ? { ...a, isActive: false, fusing: false } : a
+          ));
+          // Calculate actual rendered positions for both hydrogens
+          const originalRadius = 155;
+          const currentRadius = 320 * (1 - fusionCount * 0.33) / 2;
+          const center = currentRadius;
+          const scale = currentRadius / originalRadius;
+          const x1 = center + atom1.dx * scale;
+          const y1 = center + atom1.dy * scale;
+          const x2 = center + atom2.dx * scale;
+          const y2 = center + atom2.dy * scale;
+          // Midpoint
+          const x = (x1 + x2) / 2;
+          const y = (y1 + y2) / 2;
+          // Outward direction: from core center to midpoint
+          const dirX = x - center;
+          const dirY = y - center;
+          const dirLen = Math.sqrt(dirX * dirX + dirY * dirY) || 1;
+          const normX = dirX / dirLen;
+          const normY = dirY / dirLen;
+          const distance = 180; // how far to animate out
+          const moveX = normX * distance;
+          const moveY = normY * distance;
+          setFusingHelium({
+            id: Date.now(),
+            x,
+            y,
+            moveX,
+            moveY
+          });
+          // After animation, remove helium and increment fusion count
+          setTimeout(() => {
+            setFusingHelium(null);
+            setFusionCount(fusionCount => {
+              const newCount = fusionCount + 1;
+              if (newCount === 3) {
+                setTimeout(() => {
+                  setPhase('helium');
+                }, 2000);
+              }
+              return newCount;
+            });
+          }, 1200);
+        }, 400);
         setSelectedAtoms([]);
       } else {
-        // Not adjacent, select the new atom instead
-        setSelectedAtoms([index]);
+        setSelectedAtoms([id]);
       }
     }
   };
@@ -539,110 +591,127 @@ const StellarFusion = () => {
   }));
 
   return (
-    <Container>
-      {/* Background stars */}
-      {backgroundStars.map((star, i) => (
-        <BackgroundStar
-          key={i}
-          style={{ top: star.top, left: star.left }}
-          delay={star.delay}
-        />
-      ))}
-
-      {/* Intro text */}
-      {currentStep >= 1 && currentStep < 4 && (
-        <Text position="middle" delay={0}>
-          In our current universe, most elements are made in the center of stars
-        </Text>
-      )}
-
-      {/* Phase label */}
-      {phase !== 'intro' && (
-        <PhaseLabel>
-          {phase === 'hydrogen' ? 'Hydrogen Fusion' : 'Helium Fusion'}
-        </PhaseLabel>
-      )}
-      
-      {/* Main star */}
-      <Star 
-        isIntro={currentStep === 1} 
-        isExpanding={isExpanding}
-      >
-        <CoreRegion 
-          shrinkFactor={fusionCount}
-          isHelium={phase === 'helium'}
-          show={showCore}
-        >
-          {phase === 'hydrogen' && hydrogenPositions.map((pos, index) => (
-            pos.isActive && (
-              <HydrogenAtom
-                key={pos.id}
-                className={selectedAtoms.includes(index) ? 'selected' : ''}
-                onClick={() => handleAtomClick(index)}
-                shrinkFactor={fusionCount}
-              />
-            )
-          ))}
-          {phase === 'helium' && <HeliumCore show={true} />}
-          {phase === 'helium' && <CarbonCore show={showCarbonCore} />}
-          {phase === 'helium' && fusionParticles.map(particle => (
-            <FusionParticle
-              key={particle.id}
-              type={particle.type}
-              x={particle.x}
-              y={particle.y}
-              isFusing={fusingParticles.includes(particle.id)}
-              startX={particle.x}
-              startY={particle.y}
-              endX={particle.type === 'helium' ? 0 : particle.x}
-              endY={particle.type === 'helium' ? 0 : particle.y}
-            />
-          ))}
-          {fusionFlashes.map(flash => (
-            <FusionFlash
-              key={flash.id}
-              show={true}
-              style={{
-                transform: `translate(${flash.x}px, ${flash.y}px)`
-              }}
-            />
-          ))}
-        </CoreRegion>
-        {heliumAtoms.map(helium => (
-          <HeliumAtom
-            key={helium.id}
-            moveX={helium.moveX}
-            moveY={helium.moveY}
-            style={{
-              left: `${helium.x}px`,
-              top: `${helium.y}px`
-            }}
+    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
+      <Container>
+        {/* Background stars */}
+        {backgroundStars.map((star, i) => (
+          <BackgroundStar
+            key={i}
+            style={{ top: star.top, left: star.left }}
+            delay={star.delay}
           />
         ))}
-      </Star>
 
-      {/* Text prompts */}
-      {phase === 'hydrogen' && showCore && (
-        <Text position="bottom" delay={0}>
-          The massive gravity in the center of stars pulls hydrogen atoms together.
-          Try it yourself - click two adjacent hydrogen atoms to fuse them!
-        </Text>
-      )}
+        {/* Intro text */}
+        {currentStep >= 1 && currentStep < 4 && (
+          <Text position="middle" delay={0}>
+            In our current universe, most elements are made in the center of stars
+          </Text>
+        )}
 
-      {phase === 'helium' && (
-        <Text position="bottom" delay={0}>
-          When the hydrogen fuel in the core runs out, the core expands and begins 
-          fusing helium into heavier elements. The core begins to heat rapidly and expand.
-        </Text>
-      )}
+        {/* Phase label */}
+        {phase !== 'intro' && (
+          <PhaseLabel>
+            {phase === 'hydrogen' ? 'Hydrogen Fusion' : 'Helium Fusion'}
+          </PhaseLabel>
+        )}
+        
+        {/* Main star */}
+        <Star 
+          isIntro={currentStep === 1} 
+          isExpanding={isExpanding}
+        >
+          <CoreRegion 
+            shrinkFactor={fusionCount}
+            isHelium={phase === 'helium'}
+            show={showCore}
+          >
+            {phase === 'hydrogen' && hydrogenAtoms.map((atom) => {
+              if (!atom.isActive && !atom.fusing) return null;
+              const originalRadius = 155;
+              const currentRadius = 320 * (1 - fusionCount * 0.33) / 2;
+              const center = currentRadius;
+              const scale = currentRadius / originalRadius;
+              const x = center + atom.dx * scale;
+              const y = center + atom.dy * scale;
+              return (
+                <HydrogenAtom
+                  key={atom.id}
+                  className={selectedAtoms.includes(atom.id) ? 'selected' : ''}
+                  onClick={() => handleAtomClick(atom.id)}
+                  shrinkFactor={fusionCount}
+                  x={x}
+                  y={y}
+                  style={{ background: atom.fusing ? '#fff' : undefined }}
+                />
+              );
+            })}
+            {/* Render the fusing helium atom inside CoreRegion */}
+            {fusingHelium && (
+              <HeliumAtom
+                key={fusingHelium.id}
+                moveX={fusingHelium.moveX}
+                moveY={fusingHelium.moveY}
+                size={28}
+                color={'#4361ee'}
+                style={{
+                  left: `${fusingHelium.x}px`,
+                  top: `${fusingHelium.y}px`,
+                  opacity: 1,
+                  transform: 'translate(0, 0)'
+                }}
+              />
+            )}
+            {phase === 'helium' && <HeliumCore show={true} />}
+            {phase === 'helium' && <CarbonCore show={showCarbonCore} />}
+            {phase === 'helium' && fusionParticles.map(particle => (
+              <FusionParticle
+                key={particle.id}
+                type={particle.type}
+                x={particle.x}
+                y={particle.y}
+                isFusing={fusingParticles.includes(particle.id)}
+                startX={particle.x}
+                startY={particle.y}
+                endX={particle.type === 'helium' ? 0 : particle.x}
+                endY={particle.type === 'helium' ? 0 : particle.y}
+              />
+            ))}
+            {fusionFlashes.map(flash => (
+              <FusionFlash
+                key={flash.id}
+                show={true}
+                style={{
+                  transform: `translate(${flash.x}px, ${flash.y}px)`
+                }}
+              />
+            ))}
+          </CoreRegion>
+        </Star>
 
-      {/* Supernova button */}
-      {showSupernova && (
-        <SupernovaButton onClick={() => setPhase('supernova')}>
-          Supernova
-        </SupernovaButton>
-      )}
-    </Container>
+        {/* Text prompts */}
+        {phase === 'hydrogen' && showCore && (
+          <Text position="bottom" delay={0}>
+            The massive gravity in the center of stars pulls hydrogen atoms together.
+            Try it yourself - click two adjacent hydrogen atoms to fuse them!
+          </Text>
+        )}
+
+        {phase === 'helium' && (
+          <Text position="bottom" delay={0}>
+            When the hydrogen fuel in the core runs out, the core expands and begins 
+            fusing helium into heavier elements. The core begins to heat rapidly and expand.
+          </Text>
+        )}
+
+        {/* Supernova button */}
+        {showSupernova && (
+          <SupernovaButton onClick={() => setPhase('supernova')}>
+            Supernova
+          </SupernovaButton>
+        )}
+      </Container>
+    </div>
   );
 };
 
