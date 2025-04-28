@@ -241,10 +241,7 @@ const FusionFlash = styled.div`
 `;
 
 const SupernovaButton = styled.button`
-  position: absolute;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-top: 24px;
   padding: 12px 24px;
   font-size: 20px;
   background: linear-gradient(45deg, #FF4444, #FF6B6B);
@@ -260,7 +257,7 @@ const SupernovaButton = styled.button`
   pointer-events: auto;
 
   &:hover {
-    transform: translateX(-50%) scale(1.1);
+    transform: scale(1.1);
     background: linear-gradient(45deg, #FF6666, #FF8888);
     box-shadow: 0 4px 12px rgba(255, 68, 68, 0.6);
   }
@@ -313,6 +310,13 @@ const CarbonCore = styled.div`
     animation: ${pulseGlow} 2s infinite ease-in-out;
   }
 `;
+
+// Generate static background stars outside component
+const backgroundStars = [...Array(50)].map((_, i) => ({
+  top: `${Math.random() * 100}%`,
+  left: `${Math.random() * 100}%`,
+  delay: Math.random() * 2
+}));
 
 const StellarFusion = () => {
   // Restore individual useState hooks
@@ -582,13 +586,6 @@ const StellarFusion = () => {
       }
     }
   };
-
-  // Generate random positions for background stars
-  const backgroundStars = [...Array(50)].map((_, i) => ({
-    top: `${Math.random() * 100}%`,
-    left: `${Math.random() * 100}%`,
-    delay: Math.random() * 2
-  }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start' }}>
